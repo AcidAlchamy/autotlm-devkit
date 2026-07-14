@@ -1,0 +1,370 @@
+/* ============================================================
+   AutoTLM DevKit — local mini-console.
+   Speaks the platform's "machined cockpit" design language:
+   flat panels, hairline rules, chamfered corners, corner
+   brackets, indexed callouts, mono annotations.
+   Accents: amber = brand/action · teal = live data · red = fault
+   ============================================================ */
+
+:root {
+  --bg: #07090d;
+  --bg-2: #0a0d13;
+  --surface: #0d1118;
+  --surface-2: #11161f;
+  --line: #232c3b;
+  --line-soft: #171e2a;
+  --hairline: #1c2532;
+  --text: #dfe6ef;
+  --text-strong: #ffffff;
+  --muted: #8d9aae;
+  --faint: #55627a;
+
+  --amber: #ffb020;
+  --amber-deep: #ffa000;
+  --amber-ink: #191006;
+  --teal: #2ee6a8;
+  --teal-deep: #19c98d;
+  --teal-ink: #04140e;
+  --red: #ff5d5d;
+  --red-deep: #e04545;
+
+  --font-sans: "Chakra Petch", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  --gauge-track: #1a2230;
+  --dot: rgba(141, 154, 174, .10);
+  --chamfer: 16px;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #eef0f4;
+  --bg-2: #e7eaef;
+  --surface: #f8f9fb;
+  --surface-2: #eef1f5;
+  --line: #c9d2de;
+  --line-soft: #dde3ea;
+  --hairline: #d3dae3;
+  --text: #1a2330;
+  --text-strong: #090f16;
+  --muted: #5b6a7e;
+  --faint: #8b98a9;
+
+  --amber: #d98800;
+  --amber-deep: #c67b00;
+  --amber-ink: #ffffff;
+  --teal: #089c6f;
+  --teal-deep: #078a62;
+  --teal-ink: #ffffff;
+  --red: #d63c3c;
+  --red-deep: #b92f2f;
+
+  --gauge-track: #dce3ec;
+  --dot: rgba(26, 35, 48, .08);
+  color-scheme: light;
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15.5px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(var(--dot) 1px, transparent 1.5px) 0 0 / 26px 26px,
+    linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 340px);
+  background-attachment: fixed;
+}
+h1, h2, h3 { color: var(--text-strong); margin: 0 0 .5em; letter-spacing: .01em; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 22px; }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: .68rem; font-weight: 600;
+  letter-spacing: .24em; text-transform: uppercase;
+  color: var(--amber);
+}
+.eyebrow.teal { color: var(--teal); }
+
+/* ---------- nav ---------- */
+.nav {
+  position: sticky; top: 0; z-index: 1000;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--hairline);
+}
+/* amber engraving line across the very top of the console */
+.nav::before {
+  content: ""; display: block; height: 2px;
+  background: linear-gradient(90deg, var(--amber) 0, var(--amber) 180px,
+              color-mix(in srgb, var(--amber) 25%, transparent) 320px, transparent 60%);
+}
+.nav-inner { display: flex; align-items: center; gap: 16px; height: 58px; }
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 1.08rem; letter-spacing: .02em;
+  color: var(--text-strong); text-decoration: none; white-space: nowrap;
+}
+.brand .tlm { color: var(--amber); }
+.brand-sub {
+  color: var(--teal); font-weight: 600;
+  font-family: var(--font-mono); font-size: .82rem; letter-spacing: .2em;
+  text-transform: uppercase; margin-left: 2px;
+  border-left: 1px solid var(--line); padding-left: 10px;
+}
+.nav-links { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.device-picker {
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--line); border-radius: 0;
+  font-family: var(--font-mono); font-size: .82rem;
+  padding: 8px 10px; max-width: 230px;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 0;
+  border: 1px solid var(--line); background: transparent;
+  color: var(--muted); cursor: pointer; text-decoration: none;
+  transition: color .15s, border-color .15s;
+}
+.icon-btn:hover { color: var(--text-strong); border-color: var(--muted); }
+
+/* ---------- telemetry status bar ---------- */
+.statusbar {
+  border-bottom: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  font-family: var(--font-mono); font-size: .72rem;
+  color: var(--muted);
+}
+.statusbar-inner {
+  display: flex; align-items: center; gap: 0;
+  height: 34px; overflow-x: auto; scrollbar-width: none;
+}
+.statusbar-inner::-webkit-scrollbar { display: none; }
+.sb-cell {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 0 16px; height: 100%; white-space: nowrap;
+  border-right: 1px solid var(--hairline);
+}
+.sb-cell:first-child { padding-left: 0; }
+.sb-key { color: var(--faint); letter-spacing: .14em; text-transform: uppercase; font-size: .66rem; }
+.sb-val { color: var(--text); font-weight: 500; }
+.live-dot {
+  width: 8px; height: 8px; flex: none;
+  background: var(--faint); transition: background .3s;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); /* diamond, not a dot */
+}
+.live-dot.on { background: var(--teal); animation: pulse 2s infinite; }
+.live-dot.err { background: var(--red); }
+@keyframes pulse { 50% { opacity: .45; } }
+.live-label { color: var(--text); font-weight: 500; }
+
+/* ---------- panels: machined, not floated ---------- */
+.grid {
+  display: grid; gap: 14px; padding: 18px 0 30px;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-areas: "cluster inspector" "faults device";
+}
+.cluster-panel { grid-area: cluster; }
+.inspector-panel { grid-area: inspector; display: flex; flex-direction: column; }
+.faults-panel { grid-area: faults; }
+.device-panel { grid-area: device; }
+
+.panel {
+  position: relative;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--line-soft);
+  padding: 18px 20px 20px;
+  clip-path: polygon(0 0, calc(100% - var(--chamfer)) 0, 100% var(--chamfer), 100% 100%, 0 100%);
+}
+/* corner brackets — bottom-left registration mark */
+.panel::after {
+  content: ""; position: absolute; left: -1px; bottom: -1px;
+  width: 14px; height: 14px; pointer-events: none;
+  border-left: 2px solid var(--line); border-bottom: 2px solid var(--line);
+}
+.panel-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; margin: -4px 0 16px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--hairline);
+}
+.panel-head .eyebrow { display: inline-flex; align-items: baseline; gap: 10px; }
+.panel-head .eyebrow::before {
+  content: attr(data-idx);
+  color: var(--faint); font-weight: 500; letter-spacing: .08em;
+}
+.badges { display: flex; gap: 6px; }
+.badge {
+  font-family: var(--font-mono); font-size: .66rem; font-weight: 600;
+  letter-spacing: .12em; padding: 3px 9px;
+  border: 1px solid var(--line); color: var(--faint);
+  display: inline-flex; align-items: center; gap: 5px;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+.badge.on { color: var(--teal); border-color: color-mix(in srgb, var(--teal) 45%, transparent); background: color-mix(in srgb, var(--teal) 7%, transparent); }
+.badge.mil-on {
+  color: #fff; background: var(--red); border-color: var(--red-deep);
+  animation: pulse 1.6s infinite;
+}
+
+/* ---------- dials ---------- */
+.dials { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 10px; align-items: end; }
+.dial svg { width: 100%; height: auto; display: block; }
+.dial-face { fill: none; stroke: var(--gauge-track); }
+.dial-arc {
+  fill: none; stroke: var(--teal);
+  transition: stroke-dashoffset .45s cubic-bezier(.3,.9,.3,1), stroke .3s;
+}
+.dial-arc.warn { stroke: var(--amber); }
+.dial-arc.crit { stroke: var(--red); }
+/* glow = a wider, faint twin of the arc underneath it. Deliberately NOT an
+   SVG drop-shadow filter: those rasterize per-frame on machines without GPU
+   acceleration and cost literal seconds on first paint. */
+.dial-glow {
+  fill: none; stroke: var(--teal); opacity: .22;
+  transition: stroke-dashoffset .45s cubic-bezier(.3,.9,.3,1), stroke .3s;
+}
+.dial-glow.warn { stroke: var(--amber); }
+.dial-glow.crit { stroke: var(--red); }
+.dial-tick { stroke: var(--faint); stroke-width: 1.4; }
+.dial-num { fill: var(--faint); font-family: var(--font-mono); font-size: 9px; }
+.dial-value { fill: var(--text-strong); font-family: var(--font-mono); font-weight: 600; }
+.dial-value.warn { fill: var(--amber); }
+.dial-value.crit { fill: var(--red); }
+.dial-unit, .dial-label { fill: var(--muted); font-family: var(--font-mono); }
+
+/* ---------- mini gauges: notched readout blocks ---------- */
+.minigauges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+.mini {
+  position: relative;
+  background: var(--surface-2); border: 1px solid var(--line-soft);
+  border-left: 2px solid var(--line);
+  padding: 10px 12px;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+.mini .m-lbl { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .16em; text-transform: uppercase; color: var(--faint); }
+.mini .m-val { font-family: var(--font-mono); font-size: 1.3rem; font-weight: 600; color: var(--text-strong); margin: 3px 0 7px; }
+.mini .m-val small { font-size: .68rem; color: var(--muted); font-weight: 400; }
+.mini .m-bar {
+  height: 4px; background:
+    repeating-linear-gradient(90deg, var(--gauge-track) 0 6px, transparent 6px 8px);
+  overflow: hidden;
+}
+.mini .m-fill { height: 100%; width: 0; background: var(--teal); transition: width .45s, background .3s; }
+.mini.warn { border-left-color: var(--amber); }
+.mini.warn .m-fill { background: var(--amber); }
+.mini.warn .m-val { color: var(--amber); }
+.mini.crit { border-left-color: var(--red); }
+.mini.crit .m-fill { background: var(--red); }
+.mini.crit .m-val { color: var(--red); }
+
+/* ---------- frame inspector ---------- */
+.inspector-meta {
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: .72rem; color: var(--muted);
+  margin-bottom: 10px;
+}
+.inspector-meta b { color: var(--text-strong); font-weight: 600; }
+.btn-hold {
+  margin-left: auto;
+  background: transparent; color: var(--muted); cursor: pointer;
+  border: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: .7rem; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; padding: 5px 12px;
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+}
+.btn-hold:hover { color: var(--text-strong); border-color: var(--muted); }
+.btn-hold.held { background: var(--amber); color: var(--amber-ink); border-color: var(--amber-deep); }
+.frame-json {
+  flex: 1; margin: 0; min-height: 340px; max-height: 520px; overflow: auto;
+  background: var(--bg-2); border: 1px solid var(--line-soft);
+  padding: 14px 16px;
+  font-family: var(--font-mono); font-size: .78rem; line-height: 1.6;
+  white-space: pre; color: var(--text);
+}
+.frame-json .jk { color: var(--muted); }
+.frame-json .js { color: var(--teal); }
+.frame-json .jn { color: var(--text-strong); }
+.frame-json .jb { color: var(--amber); }
+.frame-json .jz { color: var(--faint); }
+.frame-json .onboard { white-space: pre-wrap; color: var(--muted); }
+.frame-json .onboard b { color: var(--text-strong); }
+.frame-json .onboard .cmd { color: var(--amber); }
+
+/* ---------- faults ---------- */
+.faults-summary { font-size: .98rem; margin-bottom: 14px; }
+.dtc-table { width: 100%; border-collapse: collapse; }
+.dtc-table th {
+  text-align: left; font-family: var(--font-mono); font-size: .66rem;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--faint);
+  border-bottom: 1px solid var(--line); padding: 8px 10px;
+}
+.dtc-table td { padding: 10px; border-bottom: 1px solid var(--hairline); font-size: .86rem; vertical-align: top; }
+.dtc-code { font-family: var(--font-mono); font-weight: 700; color: var(--text-strong); letter-spacing: .04em; }
+.dtc-active { color: var(--red); font-weight: 700; font-family: var(--font-mono); font-size: .78rem; letter-spacing: .1em; }
+.dtc-cleared { color: var(--teal); font-family: var(--font-mono); font-size: .78rem; letter-spacing: .1em; }
+.dtc-sub { color: var(--muted); font-size: .76rem; display: block; margin-top: 2px; }
+
+/* ---------- device panel ---------- */
+.device-info { margin: 0; display: grid; gap: 8px; }
+.device-info div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--hairline); padding-bottom: 6px; }
+.device-info dt { color: var(--faint); font-size: .72rem; text-transform: uppercase; letter-spacing: .14em; }
+.device-info dd { margin: 0; color: var(--text-strong); font-size: .84rem; overflow-wrap: anywhere; text-align: right; font-family: var(--font-mono); }
+
+/* ---------- system strip ---------- */
+.system { margin-top: 20px; padding-top: 26px; border-top: 1px solid var(--hairline); }
+.system-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.system-head h2 { font-size: 1.05rem; margin: 0; letter-spacing: .12em; text-transform: uppercase; }
+.system-head .rule { flex: 1; height: 1px; background: var(--hairline); }
+.pipeline {
+  display: grid; grid-template-columns: 1fr 34px 1fr 34px 1fr; gap: 0;
+  align-items: stretch; margin-bottom: 20px;
+}
+.pipe-node {
+  border: 1px solid var(--line-soft); background: var(--surface);
+  padding: 14px 16px; position: relative;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+.pipe-node .pn-idx { font-family: var(--font-mono); font-size: .62rem; color: var(--faint); letter-spacing: .18em; }
+.pipe-node .pn-name { font-weight: 700; color: var(--text-strong); margin: 2px 0 4px; letter-spacing: .02em; }
+.pipe-node .pn-desc { font-size: .8rem; color: var(--muted); line-height: 1.5; }
+.pipe-node .pn-desc code { font-family: var(--font-mono); font-size: .74rem; color: var(--amber); }
+.pipe-link {
+  align-self: center; height: 1px; position: relative;
+  background: repeating-linear-gradient(90deg, var(--line) 0 5px, transparent 5px 9px);
+}
+.pipe-link::after {
+  content: ""; position: absolute; right: -1px; top: -3.5px;
+  border-left: 6px solid var(--line);
+  border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+}
+
+/* ---------- footer ---------- */
+.footer {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 16px; padding-bottom: 26px; margin-top: 8px;
+  border-top: 1px solid var(--hairline);
+  font-family: var(--font-mono); font-size: .72rem; letter-spacing: .06em;
+}
+.footer a { text-decoration: none; color: var(--muted); }
+.footer a:hover { color: var(--text-strong); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1020px) {
+  .grid { grid-template-columns: 1fr; grid-template-areas: "cluster" "inspector" "faults" "device"; }
+  .pipeline { grid-template-columns: 1fr; }
+  .pipe-link { display: none; }
+  .pipeline .pipe-node { margin-bottom: 8px; }
+}
+@media (max-width: 640px) {
+  .dials { grid-template-columns: 1fr 1fr; }
+  .dial-main { grid-column: 1 / -1; }
+  .minigauges { grid-template-columns: repeat(2, 1fr); }
+}

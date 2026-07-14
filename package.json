@@ -1,0 +1,32 @@
+{
+  "name": "autotlm-devkit",
+  "version": "0.1.0",
+  "description": "Your car's backend, on your laptop — a local telemetry ingest + live mini-console for AutoTLM One developers.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "simulate": "node simulate.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "telemetry",
+    "obd-ii",
+    "automotive",
+    "arduino",
+    "esp32",
+    "sse",
+    "express"
+  ],
+  "author": "AcidAlchamy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AcidAlchamy/autotlm-devkit.git"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

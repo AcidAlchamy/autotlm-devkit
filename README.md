@@ -1,0 +1,147 @@
+# AutoTLM DevKit
+
+**Your car's backend, on your laptop.**
+
+You bought an [AutoTLM One](https://autotlm.com), wrote your first sketch with
+[AutoTLM Core](https://github.com/AcidAlchamy/autotlm-core)… and now your
+telemetry needs somewhere to *go*. Long before you care about a cloud account,
+you want a receiving end you can see into — on your own machine, in under a
+minute.
+
+That's this kit: a small, readable **Express backend + live mini-console**.
+It ingests exactly what AutoTLM Core pushes, stores it, serves it back over a
+clean query API, and lights up a cockpit-style console in your browser — live
+gauges, a raw frame inspector, and plain-English fault decoding.
+
+It is deliberately a **starter, not a product**. Open it up. Rip it apart.
+Build your thing on top of it.
+
+```
+git clone https://github.com/AcidAlchamy/autotlm-devkit
+cd autotlm-devkit
+npm install
+npm start        →  console on http://localhost:3000
+```
+
+No hardware on your desk yet? Second terminal:
+
+```
+npm run simulate
+```
+
+…and the console lights up with a full simulated drive: warm-up, city
+stop-and-go, a highway stretch, a check-engine fault partway in, and the
+occasional GPS dropout (so your null-checks earn their keep).
+
+## Point your real device at it
+
+Your device pushes to whatever cloud URL it was provisioned with. So:
+
+1. `npm start` and read the startup banner — it prints the kit's **LAN ingest
+   URL** (e.g. `http://192.168.1.23:3000/api/ingest`) and the **token**.
+2. In your device's setup portal, set that URL + token as the cloud target.
+3. Turn the key. Frames land here with **zero code changes** — the kit speaks
+   the same ingest contract as the production cloud.
+
+## The API surface
+
+Ingest (what a device POSTs):
+
+| Endpoint | Notes |
+|---|---|
+| `POST /api/ingest` | One frame object, **or an array of up to 50** (batched catch-up). `Authorization: Bearer <token>`. Returns `{"ok":true,"accepted":n}`. |
+
+Query (what your tools GET — no auth, it's your laptop):
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/devices` | `{"devices":[{"id","name","created_at","last_seen","vin"}]}` |
+| `GET /api/devices/:id/latest` | `{"device_id","name","ts","frame":{…}}` |
+| `GET /api/devices/:id/history?from=&to=&interval=` | `{"device_id","from","to","interval_s","points":[{"ts","frame"}]}` — ISO times, downsampled to one point per `interval` seconds (default 5), default range = last hour |
+| `GET /api/devices/:id/dtc` | `{"device_id","mil","codes":[{"code","first_seen","last_seen","active"}]}` |
+| `GET /api/devices/:id/live` | **Server-Sent Events** — one `data:` message per ingested frame: `{"device_id","ts","frame":{…}}` |
+| `GET /healthz` | `{"ok":true, "devices":n, "frames_received":n}` |
+| `GET /api/meta` | Kit version, port, and every ingest URL a device on your network can reach |
+
+Try it from the command line:
+
+```
+curl -s -X POST http://127.0.0.1:3000/api/ingest \
+  -H "Authorization: Bearer devkit" -H "Content-Type: application/json" \
+  -d '{"source":"device","device":{"id":"MYCAR"},"obd":{"connected":true,"rpm":1840,"speed_kph":58,"coolant_c":88}}'
+
+curl -s http://127.0.0.1:3000/api/devices/MYCAR/latest
+```
+
+## The telemetry frame
+
+The frame format belongs to **AutoTLM Core** — this kit consumes it verbatim
+and so should you. The full contract (field names, units, the PID map) is in
+[Core's README](https://github.com/AcidAlchamy/autotlm-core#the-telemetry-frame).
+The two rules that matter most when you build on top:
+
+- **Every sub-object is optional.** No GPS fix → no `gps` object at all
+  (never a zero-filled one). Null-check `obd` / `gps` / `imu` / `dtc`, always.
+- **Values are SI end to end** — km/h, °C, kPa. Convert at display time.
+
+## Configuration
+
+Everything is an env var with a dev-friendly default:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `3000` | HTTP port for everything |
+| `DEVKIT_TOKEN` | `devkit` | Bearer token required on `/api/ingest` |
+| `DEVKIT_BUFFER` | `5000` | Frames kept in memory per device (ring buffer) |
+| `DEVKIT_PERSIST` | off | `1` = append every frame to a JSON-lines file and replay it on restart |
+| `DEVKIT_PERSIST_FILE` | `data/telemetry.jsonl` | Where that file lives |
+
+Container-minded? `docker compose up` builds and runs the same thing on the
+same port.
+
+## The mini-console
+
+The page at `/` is a vanilla-JS client of the kit's own query API — no
+framework, no build step; view-source *is* the documentation.
+
+- **Instrument cluster** — speed / rpm / coolant dials, throttle / load /
+  battery / fuel minis, with amber and red thresholds.
+- **Frame inspector** — every frame, pretty-printed live as it arrives, with a
+  HOLD button for reading one closely. If you're debugging a sketch, you'll
+  live here.
+- **Diagnostics** — every trouble code the device has ever reported, decoded
+  into plain English, with active / cleared status and first-seen / last-seen.
+- **Device** — id, VIN, signal, a lat/lng position readout, and live g-forces.
+
+## Graduating to AutoTLM Cloud
+
+The query endpoints here mirror the AutoTLM Cloud API shapes on purpose.
+When your project outgrows the laptop:
+
+1. Register your device with AutoTLM Cloud and get a real device token.
+2. Re-provision the device's cloud URL from the DevKit's LAN address to the
+   cloud ingest endpoint.
+3. Point your client code at the cloud query API — same routes, same response
+   shapes, plus what a real backend adds: accounts and per-device tokens,
+   trip segmentation, device events, and history that survives a reboot.
+
+Nothing you build against this kit gets thrown away.
+
+## Honest limits (a.k.a. your upgrade path)
+
+This is a teaching starter. If you push it toward production, harden — in
+roughly this order:
+
+- **Storage** is an in-memory ring buffer; restart = clean slate (unless you
+  enable the JSON-lines flag, which is a log, not a database). First real
+  upgrade: SQLite. Second: Postgres.
+- **Query endpoints are unauthenticated** — fine on localhost, not fine
+  exposed. Add auth before the kit leaves your machine.
+- **The ingest token check is a plain string compare** and there's no rate
+  limiting, no HTTPS termination, no input schema validation beyond "is it an
+  object". A real backend wants all four.
+- **One process, no clustering, no metrics.** You know the drill.
+
+## License
+
+MIT. Build something great on it.

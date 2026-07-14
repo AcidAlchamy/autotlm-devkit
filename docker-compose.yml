@@ -1,0 +1,13 @@
+services:
+  devkit:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Override the dev token the moment this is reachable by anyone but you.
+      DEVKIT_TOKEN: ${DEVKIT_TOKEN:-devkit}
+      # Uncomment to persist frames across restarts (JSON-lines file):
+      # DEVKIT_PERSIST: "1"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

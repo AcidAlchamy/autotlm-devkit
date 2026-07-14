@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoTLM DevKit — local telemetry console</title>
+  <meta name="description" content="Your car's backend, on your laptop. Local ingest + live console for telemetry development.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0a0d12">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <script>
+    (function(){try{var t=localStorage.getItem("autotlm-devkit-theme");document.documentElement.dataset.theme=t||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");}catch(e){document.documentElement.dataset.theme="dark";}})();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/">
+      <svg width="26" height="26" viewBox="0 0 64 64" aria-hidden="true">
+        <rect width="64" height="64" rx="14" fill="none" stroke="currentColor" stroke-opacity=".28" stroke-width="4"/>
+        <polyline points="10,38 21,38 27,22 35,50 41,32 45,38 54,38" fill="none" stroke="#ffb020" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span data-brand-name>Auto<span class="tlm">TLM</span></span><span class="brand-sub">DevKit</span>
+    </a>
+
+    <div class="nav-links">
+      <select class="device-picker" id="device-picker" aria-label="Device">
+        <option value="">Waiting for a device…</option>
+      </select>
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme" title="Light / dark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="statusbar">
+  <div class="wrap statusbar-inner">
+    <span class="sb-cell">
+      <span class="live-dot" id="live-dot" title="Live stream status"></span>
+      <span class="sb-key">link</span>
+      <span class="live-label" id="live-label">starting…</span>
+    </span>
+    <span class="sb-cell"><span class="sb-key">unit</span><span class="sb-val" id="sb-dev">—</span></span>
+    <span class="sb-cell"><span class="sb-key">frames</span><span class="sb-val" id="sb-frames">0</span></span>
+    <span class="sb-cell"><span class="sb-key">ingest</span><span class="sb-val" id="sb-ingest">—</span></span>
+    <span class="sb-cell"><span class="sb-key">route</span><span class="sb-val">ONE ▸ DEVKIT ▸ YOU</span></span>
+    <span class="sb-cell"><span class="sb-key">utc</span><span class="sb-val" id="sb-clock">--:--:--</span></span>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="grid">
+
+    <!-- ============ 01 / instrument cluster ============ -->
+    <div class="panel cluster-panel">
+      <div class="panel-head">
+        <span class="eyebrow teal" data-idx="01 /">Instrument cluster</span>
+        <div class="badges">
+          <span class="badge" id="badge-obd">OBD</span>
+          <span class="badge" id="badge-gps">GPS</span>
+          <span class="badge" id="badge-imu">IMU</span>
+          <span class="badge" id="badge-mil" title="Check engine">MIL</span>
+        </div>
+      </div>
+
+      <div class="dials">
+        <div class="dial" id="dial-speed"></div>
+        <div class="dial dial-main" id="dial-rpm"></div>
+        <div class="dial" id="dial-coolant"></div>
+      </div>
+
+      <div class="minigauges">
+        <div class="mini" id="mini-throttle"></div>
+        <div class="mini" id="mini-load"></div>
+        <div class="mini" id="mini-volts"></div>
+        <div class="mini" id="mini-fuel"></div>
+      </div>
+    </div>
+
+    <!-- ============ 02 / frame inspector ============ -->
+    <div class="panel inspector-panel">
+      <div class="panel-head">
+        <span class="eyebrow" data-idx="02 /">Frame inspector</span>
+        <span class="muted mono" id="inspector-note">raw telemetry, live</span>
+      </div>
+      <div class="inspector-meta">
+        <span>ts <b id="fi-ts">—</b></span>
+        <span>size <b id="fi-size">—</b></span>
+        <button class="btn-hold" id="fi-hold" title="Freeze the inspector to read a frame">HOLD</button>
+      </div>
+      <pre class="frame-json" id="frame-json"><span class="onboard">No frames yet.
+
+<b>Light it up without hardware:</b>
+  <span class="cmd">npm run simulate</span>
+
+<b>Or point your device at this kit:</b>
+  provision its cloud URL to the ingest
+  address in the status bar, with the token
+  the server printed at startup.</span></pre>
+    </div>
+
+    <!-- ============ 03 / diagnostics ============ -->
+    <div class="panel faults-panel">
+      <div class="panel-head">
+        <span class="eyebrow" data-idx="03 /">Diagnostics</span>
+        <span class="badge" id="faults-mil">MIL</span>
+      </div>
+      <div class="faults-summary" id="faults-summary">No trouble codes on record.</div>
+      <table class="dtc-table" id="dtc-table" hidden>
+        <thead><tr><th>Code</th><th>Meaning</th><th>Status</th><th>First seen</th><th>Last seen</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- ============ 04 / device ============ -->
+    <div class="panel device-panel">
+      <div class="panel-head"><span class="eyebrow" data-idx="04 /">Device</span></div>
+      <dl class="device-info" id="device-info">
+        <div><dt>id</dt><dd id="di-id">—</dd></div>
+        <div><dt>VIN</dt><dd id="di-vin">—</dd></div>
+        <div><dt>last seen</dt><dd id="di-seen">—</dd></div>
+        <div><dt>signal</dt><dd id="di-rssi">—</dd></div>
+        <div><dt>position</dt><dd id="di-pos">no fix</dd></div>
+        <div><dt>motion</dt><dd id="di-imu">—</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <!-- ============ system strip ============ -->
+  <section class="system">
+    <div class="system-head">
+      <span class="eyebrow">SYS /</span>
+      <h2>How this kit works</h2>
+      <div class="rule"></div>
+    </div>
+
+    <div class="pipeline">
+      <div class="pipe-node">
+        <div class="pn-idx">NODE 01 — SOURCE</div>
+        <div class="pn-name">Your device (or the simulator)</div>
+        <div class="pn-desc">Telemetry frames arrive over plain HTTP at <code>POST /api/ingest</code> —
+          one frame or a batched catch-up array, bearer-token authenticated.</div>
+      </div>
+      <div class="pipe-link"></div>
+      <div class="pipe-node">
+        <div class="pn-idx">NODE 02 — THIS KIT</div>
+        <div class="pn-name" data-brand-name>DevKit</div>
+        <div class="pn-desc">Stores frames in a per-device ring buffer and serves them back:
+          <code>/api/devices</code>, <code>/latest</code>, <code>/history</code>, <code>/dtc</code>,
+          and a live SSE channel — the same shapes the production cloud speaks.</div>
+      </div>
+      <div class="pipe-link"></div>
+      <div class="pipe-node">
+        <div class="pn-idx">NODE 03 — YOUR CODE</div>
+        <div class="pn-name">Whatever you're building</div>
+        <div class="pn-desc">This console is just a client of the query API. Open the source, rip it
+          apart, build your own — when you outgrow the laptop, the cloud speaks the same contract.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer wrap">
+  <span class="muted"><span data-brand-name>AUTO<span style="color:var(--amber)">TLM</span></span> DEVKIT — LOCAL TELEMETRY CONSOLE</span>
+  <span class="muted" id="ft-meta">MIT · <a href="https://github.com/AcidAlchamy/autotlm-devkit" target="_blank" rel="noopener">SOURCE</a> · <a href="https://autotlm.com" target="_blank" rel="noopener">PLATFORM</a></span>
+</footer>
+
+<script src="/dtc.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
