@@ -2,9 +2,10 @@
  *
  * A deliberately readable client of the kit's own query API:
  *   GET /api/devices                     → device picker
+ *   GET /api/devices/:id/latest          → last-known frame on open
  *   GET /api/devices/:id/live   (SSE)    → everything live on this page
  *   GET /api/devices/:id/dtc             → diagnostics table
- *   GET /api/meta                        → ingest URL + frame counters
+ *   GET /api/meta                        → ingest URL + token + counters
  *
  * No framework, no build step. View-source is the documentation.
  */
@@ -26,6 +27,7 @@
     },
     meta: function () { return this._json("/api/meta"); },
     devices: function () { return this._json("/api/devices"); },
+    latest: function (id) { return this._json("/api/devices/" + id + "/latest"); },
     dtc: function (id) { return this._json("/api/devices/" + id + "/dtc"); }
   };
 
@@ -268,6 +270,9 @@
     $("sb-dev").textContent = id;
     if (es) { es.close(); es = null; }
     setLive("", "connecting…");
+    // show the last frame the device pushed immediately, so the console isn't
+    // blank when you open it between drives; SSE then keeps it live.
+    API.latest(id).then(function (m) { if (m && m.frame) onFrame(m); }).catch(function () { });
     es = new EventSource("/api/devices/" + id + "/live");
     es.onopen = function () { setLive("", "listening…"); };
     es.onerror = function () { setLive("err", "reconnecting"); };
@@ -307,8 +312,12 @@
   API.meta().then(function (m) {
     // prefer the LAN URL — that's the one a real device can reach
     var urls = m.ingest_urls || [];
-    $("sb-ingest").textContent = urls[urls.length - 1] || "—";
+    var ingest = urls[urls.length - 1] || "—";
+    $("sb-ingest").textContent = ingest;
     document.title = m.product + " DevKit — local telemetry console";
+    // fill the empty-state setup guide with the real values to provision
+    var ou = $("onboard-url"); if (ou) ou.textContent = ingest;
+    var ot = $("onboard-token"); if (ot && m.token) ot.textContent = m.token;
   }).catch(function () { });
 
   $("theme-toggle").addEventListener("click", function () {

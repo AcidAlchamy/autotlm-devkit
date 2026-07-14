@@ -127,7 +127,10 @@ api.get("/healthz", (_req, res) => {
   res.json({ ok: true, ...store.stats() });
 });
 
-// The console uses this to show real, copy-pasteable ingest URLs.
+// The console uses this to show the real ingest URL + token to provision a
+// device with. The token is a local dev convenience (printed at startup, your
+// own kit on your own machine) — see the README's "honest limits" before you
+// ever expose this port beyond localhost/LAN.
 api.get("/api/meta", (_req, res) => {
   res.json({
     product: PRODUCT_NAME,
@@ -135,6 +138,7 @@ api.get("/api/meta", (_req, res) => {
     version: DEVKIT_VERSION,
     port: config.port,
     ingest_urls: ingestUrls(),
+    token: config.token,
     ...store.stats(),
   });
 });

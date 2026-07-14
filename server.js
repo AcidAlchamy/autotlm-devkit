@@ -1,10 +1,10 @@
 /* AutoTLM DevKit — your car's backend, on your laptop.
  *
- *   npm start          → ingest + query API + mini-console on one port
- *   npm run simulate   → a fake car, so the console lights up with no hardware
+ *   npm start   → ingest + query API + mini-console on one port
  *
- * Point a real device's cloud URL at the LAN address printed below and it
- * streams here with zero code changes.
+ * The stage is set; your gear supplies the data. Provision an AutoTLM One's
+ * cloud URL to the LAN address printed at startup and it streams here with
+ * zero code changes — reading a real car, or the Car-Emulator on your bench.
  */
 
 import path from "node:path";
@@ -33,6 +33,8 @@ app.listen(config.port, () => {
   token     ${config.token}   (override: DEVKIT_TOKEN=... npm start)
   persist   ${config.persist ? `on → ${config.persistFile}` : "off (DEVKIT_PERSIST=1 to enable)"}
   ──────────────────────────────────────────────────────────
-  No hardware handy?  npm run simulate
+  Provision your AutoTLM One's cloud URL to the ingest address
+  above (LAN one for a device on your network) + the token, and
+  it streams straight here. The console fills in as frames land.
 `);
 });

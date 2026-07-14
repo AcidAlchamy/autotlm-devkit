@@ -8,10 +8,17 @@ telemetry needs somewhere to *go*. Long before you care about a cloud account,
 you want a receiving end you can see into — on your own machine, in under a
 minute.
 
-That's this kit: a small, readable **Express backend + live mini-console**.
-It ingests exactly what AutoTLM Core pushes, stores it, serves it back over a
-clean query API, and lights up a cockpit-style console in your browser — live
-gauges, a raw frame inspector, and plain-English fault decoding.
+That's this kit: a small, readable **Express backend + live mini-console** —
+the receiving stage, already set up. It ingests exactly what AutoTLM Core
+pushes, stores it, serves it back over a clean query API, and renders a
+cockpit-style console in your browser — live gauges, a raw frame inspector,
+and plain-English fault decoding.
+
+It does **not** manufacture data. The only thing that lights it up is real
+telemetry from your own gear — an **AutoTLM One** reading a real car, or the
+**Car-Emulator** on your bench (driven by **AutoTLM Studio**). That's the
+point: a receiving end for what you actually build, not a demo full of fake
+numbers.
 
 It is deliberately a **starter, not a product**. Open it up. Rip it apart.
 Build your thing on top of it.
@@ -23,25 +30,29 @@ npm install
 npm start        →  console on http://localhost:3000
 ```
 
-No hardware on your desk yet? Second terminal:
+The console opens empty, waiting — because the data comes from your device.
 
-```
-npm run simulate
-```
+## Point your device at it
 
-…and the console lights up with a full simulated drive: warm-up, city
-stop-and-go, a highway stretch, a check-engine fault partway in, and the
-occasional GPS dropout (so your null-checks earn their keep).
-
-## Point your real device at it
-
-Your device pushes to whatever cloud URL it was provisioned with. So:
+Your AutoTLM One pushes to whatever cloud URL it was provisioned with. So aim
+it here:
 
 1. `npm start` and read the startup banner — it prints the kit's **LAN ingest
-   URL** (e.g. `http://192.168.1.23:3000/api/ingest`) and the **token**.
-2. In your device's setup portal, set that URL + token as the cloud target.
-3. Turn the key. Frames land here with **zero code changes** — the kit speaks
-   the same ingest contract as the production cloud.
+   URL** (e.g. `http://192.168.1.23:3000/api/ingest`) and the **token**. The
+   console's start screen shows the exact values to copy, too.
+2. In the One's setup portal, set that URL + token as the cloud target.
+3. Power it on — plugged into a real car, or into the Car-Emulator on your
+   bench. Frames land here with **zero code changes**, and the console fills
+   in live. The kit speaks the same ingest contract as the production cloud.
+
+**Just checking the plumbing?** You can POST a frame by hand — that's you
+feeding it real data on purpose, which is fine:
+
+```
+curl -s -X POST http://127.0.0.1:3000/api/ingest \
+  -H "Authorization: Bearer devkit" -H "Content-Type: application/json" \
+  -d '{"source":"device","device":{"id":"MYCAR"},"obd":{"connected":true,"rpm":1840,"speed_kph":58,"coolant_c":88}}'
+```
 
 ## The API surface
 
@@ -61,15 +72,12 @@ Query (what your tools GET — no auth, it's your laptop):
 | `GET /api/devices/:id/dtc` | `{"device_id","mil","codes":[{"code","first_seen","last_seen","active"}]}` |
 | `GET /api/devices/:id/live` | **Server-Sent Events** — one `data:` message per ingested frame: `{"device_id","ts","frame":{…}}` |
 | `GET /healthz` | `{"ok":true, "devices":n, "frames_received":n}` |
-| `GET /api/meta` | Kit version, port, and every ingest URL a device on your network can reach |
+| `GET /api/meta` | Kit version, port, ingest URL(s) + token — what the console's start screen shows you to provision |
 
-Try it from the command line:
+Read it back with a plain GET (no auth — it's your laptop):
 
 ```
-curl -s -X POST http://127.0.0.1:3000/api/ingest \
-  -H "Authorization: Bearer devkit" -H "Content-Type: application/json" \
-  -d '{"source":"device","device":{"id":"MYCAR"},"obd":{"connected":true,"rpm":1840,"speed_kph":58,"coolant_c":88}}'
-
+curl -s http://127.0.0.1:3000/api/devices
 curl -s http://127.0.0.1:3000/api/devices/MYCAR/latest
 ```
 
@@ -136,7 +144,9 @@ roughly this order:
   enable the JSON-lines flag, which is a log, not a database). First real
   upgrade: SQLite. Second: Postgres.
 - **Query endpoints are unauthenticated** — fine on localhost, not fine
-  exposed. Add auth before the kit leaves your machine.
+  exposed. Add auth before the kit leaves your machine. (`/api/meta` even
+  hands back the ingest token — a convenience for *your* console, and one
+  more reason not to expose this port as-is.)
 - **The ingest token check is a plain string compare** and there's no rate
   limiting, no HTTPS termination, no input schema validation beyond "is it an
   object". A real backend wants all four.

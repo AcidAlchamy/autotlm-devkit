@@ -94,15 +94,19 @@
         <span>size <b id="fi-size">—</b></span>
         <button class="btn-hold" id="fi-hold" title="Freeze the inspector to read a frame">HOLD</button>
       </div>
-      <pre class="frame-json" id="frame-json"><span class="onboard">No frames yet.
+      <pre class="frame-json" id="frame-json"><span class="onboard"><b>Waiting for your first frame.</b>
 
-<b>Light it up without hardware:</b>
-  <span class="cmd">npm run simulate</span>
+The stage is set — now point your gear at it:
 
-<b>Or point your device at this kit:</b>
-  provision its cloud URL to the ingest
-  address in the status bar, with the token
-  the server printed at startup.</span></pre>
+  <b>1.</b> In your <b>AutoTLM One</b>'s setup portal, set its
+     cloud URL to
+       <span class="cmd" id="onboard-url">http://…/api/ingest</span>
+     and the token
+       <span class="cmd" id="onboard-token">devkit</span>
+
+  <b>2.</b> Power it on. Reading a real car — or the
+     <b>Car-Emulator</b> on your bench — it streams
+     straight here, and this console fills in live.</span></pre>
     </div>
 
     <!-- ============ 03 / diagnostics ============ -->
