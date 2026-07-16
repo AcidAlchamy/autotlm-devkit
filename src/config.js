@@ -14,7 +14,7 @@ export const config = {
   port: Number(process.env.PORT || 3000),
 
   /**
-   * Bearer token your device (or the simulator) must send on POST /api/ingest.
+   * Bearer token your device must send on POST /api/ingest.
    * The default is deliberately simple — this is a local dev tool. Override it
    * the moment the kit is reachable by anyone but you:
    *   DEVKIT_TOKEN=something-long-and-random npm start
