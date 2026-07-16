@@ -7,7 +7,7 @@
 // The product name lives in this ONE constant. Rebrand = edit this line.
 export const PRODUCT_NAME = "AutoTLM";
 
-export const DEVKIT_VERSION = "0.2.0";
+export const DEVKIT_VERSION = "0.3.0";
 
 export const config = {
   /** HTTP port for ingest, query API and the mini-console. */

@@ -53,14 +53,28 @@ api.post("/api/ingest", (req, res) => {
     return res.status(400).json({ error: "too_many_frames" });
   }
 
+  const receivedAt = Date.now();
   let accepted = 0;
   for (const frame of frames) {
     if (!frame || typeof frame !== "object" || Array.isArray(frame)) continue;
-    const dev = store.addFrame(frame);
+    // Batched catch-up frames carry `age_ms` — how long ago the device
+    // captured them (it has no wall clock, only a relative age). Store them
+    // at capture time, ts = receivedAt − age_ms, so an offline gap lands as
+    // a correctly-spread timeline instead of one clump — the same rule the
+    // production cloud applies. Ages over 7 days are treated as absent so a
+    // corrupt value can't backdate history into the far past.
+    const age =
+      typeof frame.age_ms === "number" &&
+      frame.age_ms >= 0 &&
+      frame.age_ms <= 7 * 24 * 3600_000
+        ? frame.age_ms
+        : 0;
+    const ts = new Date(receivedAt - age).toISOString();
+    const dev = store.addFrame(frame, ts);
     accepted++;
     broadcast(dev.id, {
       device_id: dev.id,
-      ts: dev.last_seen,
+      ts,
       frame,
     });
   }

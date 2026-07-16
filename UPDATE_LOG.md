@@ -1,5 +1,19 @@
 # AutoTLM DevKit — Update Log
 
+## 2026-07-15 — AutoTLM DevKit v0.3.0: timelines that survive the tunnel, tests, and full offline
+
+The DevKit now keeps time the way the production cloud does: batched catch-up
+frames (the ones your One buffers through a parking garage) land at their real
+**capture time** via the frame's new `age_ms`, so an offline gap comes back as
+a correctly-spread drive timeline instead of one clump — graduate to AutoTLM
+Cloud and the behavior doesn't change. The kit also gains a spine: `npm test`
+boots it and walks the whole device loop (auth, the canonical Core frame,
+every query endpoint, the catch-up spread), running in CI on every push. And
+it now works with the network cable pulled — fonts are vendored, no CDN calls
+from a local tool. Plus a defensive-rendering pass in the console and two
+stale simulator references scrubbed (the DevKit is the receiving stage — real
+gear only).
+
 ## 2026-07-13 — AutoTLM DevKit v0.2.0: the stage, set for your real gear
 
 The DevKit sharpens to its real purpose: it's the **receiving stage**, not a

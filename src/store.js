@@ -31,9 +31,15 @@ let persistStream = null;
 
 /**
  * Accept one telemetry frame. Returns the device record it landed in.
- * `ts` is stamped server-side — devices don't carry a clock we trust.
+ * `ts` is the frame's CAPTURE time as this server reckons it: arrival time
+ * for live frames, backdated by `age_ms` for batched catch-up frames (the
+ * ingest route does that subtraction — devices carry no wall clock we
+ * trust, only a relative age).
  */
 export function addFrame(frame, ts = new Date().toISOString()) {
+  // Frames without a device.id all merge into one "UNKNOWN" device rather
+  // than being dropped — a half-written sketch beats silent data loss. Set
+  // frame.device.id as soon as your sketch has one.
   const id = frame?.device?.id || "UNKNOWN";
   let dev = devices.get(id);
   if (!dev) {
@@ -50,7 +56,9 @@ export function addFrame(frame, ts = new Date().toISOString()) {
     devices.set(id, dev);
   }
 
-  dev.last_seen = ts;
+  // last_seen only moves forward — a backdated catch-up frame arriving
+  // after a live one must not roll the device's "last seen" into the past.
+  if (ts > dev.last_seen) dev.last_seen = ts;
   dev.frames.push({ ts, frame });
   if (dev.frames.length > config.bufferFrames) dev.frames.shift();
   framesReceived++;
@@ -121,12 +129,16 @@ export function history(id, { from, to, intervalS = 5, cap = 5000 } = {}) {
   const toMs = to ? Date.parse(to) : now;
   const step = Math.max(1, Number(intervalS) || 5) * 1000;
 
-  const buckets = new Map(); // bucketIndex -> point (newest wins)
+  const buckets = new Map(); // bucketIndex -> point (newest CAPTURE wins)
   if (dev) {
     for (const p of dev.frames) {
       const t = Date.parse(p.ts);
       if (t < fromMs || t > toMs) continue;
-      buckets.set(Math.floor(t / step), p);
+      // Newest capture time wins the bucket, not newest arrival — so an
+      // old catch-up frame can never overwrite a fresher live point.
+      const idx = Math.floor(t / step);
+      const prev = buckets.get(idx);
+      if (!prev || Date.parse(prev.ts) <= t) buckets.set(idx, p);
     }
   }
   let points = [...buckets.entries()]

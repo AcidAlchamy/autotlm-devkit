@@ -211,10 +211,13 @@
     if (obd && obd.vin) $("di-vin").textContent = obd.vin;
     $("di-seen").textContent = "just now";
     $("di-rssi").textContent = f.device && f.device.rssi != null ? f.device.rssi + " dBm" : "—";
-    $("di-pos").textContent = gps && gps.fix
+    // Practice what the README preaches: null-check INSIDE sub-objects too.
+    // A fix flag without coordinates, or an imu missing an axis, is a frame
+    // we render around — never a TypeError.
+    $("di-pos").textContent = gps && gps.fix && typeof gps.lat === "number" && typeof gps.lng === "number"
       ? gps.lat.toFixed(5) + ", " + gps.lng.toFixed(5) + " · " + (gps.sats || "?") + " sats"
       : "no fix";
-    $("di-imu").textContent = imu
+    $("di-imu").textContent = imu && typeof imu.ax === "number" && typeof imu.ay === "number" && typeof imu.az === "number"
       ? imu.ax.toFixed(2) + " / " + imu.ay.toFixed(2) + " / " + imu.az.toFixed(2) + " g"
       : "—";
 

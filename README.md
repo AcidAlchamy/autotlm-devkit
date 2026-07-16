@@ -62,6 +62,14 @@ Ingest (what a device POSTs):
 |---|---|
 | `POST /api/ingest` | One frame object, **or an array of up to 50** (batched catch-up). `Authorization: Bearer <token>`. Returns `{"ok":true,"accepted":n}`. |
 
+Batched catch-up frames carry a top-level `age_ms` — how long ago the device
+captured each one (it has no wall clock, only a relative age; live frames omit
+the field). The kit stores every frame at its **capture time**,
+`receivedAt − age_ms`, so a drive through a connectivity gap comes back as a
+correctly-spread timeline instead of one clump — the same rule the production
+cloud applies (including the guard: an `age_ms` over 7 days is treated as
+absent).
+
 Query (what your tools GET — no auth, it's your laptop):
 
 | Endpoint | Returns |
@@ -89,8 +97,18 @@ and so should you. The full contract (field names, units, the PID map) is in
 The two rules that matter most when you build on top:
 
 - **Every sub-object is optional.** No GPS fix → no `gps` object at all
-  (never a zero-filled one). Null-check `obd` / `gps` / `imu` / `dtc`, always.
+  (never a zero-filled one). Null-check `obd` / `gps` / `imu` / `dtc`, always —
+  and the fields *inside* them too (the console does).
 - **Values are SI end to end** — km/h, °C, kPa. Convert at display time.
+
+Everything the frame carries is stored and served back verbatim — the newer
+contract fields (`obd.supported`, `obd.pids` as real JSON numbers, `dtc.freeze`,
+`gps.source`, `age_ms`) flow through untouched, and the frame inspector is the
+easiest place to watch them arrive.
+
+One quirk to know: a frame that arrives **without** `frame.device.id` isn't
+dropped — it lands in a single shared `UNKNOWN` device, so a half-written
+sketch still shows up somewhere. Set a device id early.
 
 ## Configuration
 
@@ -107,10 +125,23 @@ Everything is an env var with a dev-friendly default:
 Container-minded? `docker compose up` builds and runs the same thing on the
 same port.
 
+## Testing
+
+```
+npm test
+```
+
+boots the kit on a scratch port and walks the loop a real device walks:
+reject a bad token, ingest the canonical frame from Core's README, read it
+back through every query endpoint, and prove a batched catch-up spreads
+correctly across history. Plain `node:test` — no framework to learn, and the
+test file doubles as executable API documentation. CI runs it on every push.
+
 ## The mini-console
 
 The page at `/` is a vanilla-JS client of the kit's own query API — no
-framework, no build step; view-source *is* the documentation.
+framework, no build step, no CDN (fonts are vendored — the console works with
+the network cable pulled); view-source *is* the documentation.
 
 - **Instrument cluster** — speed / rpm / coolant dials, throttle / load /
   battery / fuel minis, with amber and red thresholds.
