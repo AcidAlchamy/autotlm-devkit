@@ -72,9 +72,9 @@ when mil:
 
 Two rules, one heartbeat: a fresh telemetry frame lands on your DevKit every
 two seconds, and the moment the check-engine light comes on you get an alert
-with the stored-code count — no C++ written. Install is one file (14 KB, any
-Python 3.9+, or a standalone Windows exe — see the
-[v0.2.0 release](https://github.com/AcidAlchamy/tlmscript/releases/tag/v0.2.0)),
+with the stored-code count — no C++ written. Install is one file (any Python
+3.9+, or a standalone Windows exe — see the
+[latest release](https://github.com/AcidAlchamy/tlmscript/releases/latest)),
 and `push` is Core's out-of-cycle `car.pushNow()` landing on the same
 `/api/ingest` you provisioned above.
 
