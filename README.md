@@ -54,6 +54,38 @@ curl -s -X POST http://127.0.0.1:3000/api/ingest \
   -d '{"source":"device","device":{"id":"MYCAR"},"obd":{"connected":true,"rpm":1840,"speed_kph":58,"coolant_c":88}}'
 ```
 
+## Feeding it from TLMscript
+
+You don't have to write C++ to push here.
+[TLMscript](https://github.com/AcidAlchamy/tlmscript) is AutoTLM's tiny
+scripting language — it compiles to a native AutoTLM Core sketch, so a few
+readable lines become a real program on your One:
+
+```tlm
+# heartbeat.tlm — stream your car to the DevKit console
+every 2s:
+    push
+
+when mil:
+    alert "check-engine light just came on ({dtcs} codes)"
+```
+
+Two rules, one heartbeat: a fresh telemetry frame lands on your DevKit every
+two seconds, and the moment the check-engine light comes on you get an alert
+with the stored-code count — no C++ written. Install is one file (14 KB, any
+Python 3.9+, or a standalone Windows exe — see the
+[v0.2.0 release](https://github.com/AcidAlchamy/tlmscript/releases/tag/v0.2.0)),
+and `push` is Core's out-of-cycle `car.pushNow()` landing on the same
+`/api/ingest` you provisioned above.
+
+> One accuracy note: TLMscript's `alert` also POSTs a device event to
+> `/api/events`, which this starter doesn't serve (events are a Cloud feature —
+> see [Graduating to AutoTLM Cloud](#graduating-to-autotlm-cloud)). On a DevKit
+> target that leg 404s harmlessly and the serial `[ALERT]` line still prints;
+> your telemetry stream is unaffected. Serving events is a natural extension
+> exercise — a small `/api/events` route that feeds the SSE channel would light
+> alerts up in the console.
+
 ## The API surface
 
 Ingest (what a device POSTs):
@@ -162,9 +194,21 @@ When your project outgrows the laptop:
    cloud ingest endpoint.
 3. Point your client code at the cloud query API — same routes, same response
    shapes, plus what a real backend adds: accounts and per-device tokens,
-   trip segmentation, device events, and history that survives a reboot.
+   trip segmentation, device events, history that survives a reboot, and
+   phone-as-a-GPS-source provenance (see below).
 
 Nothing you build against this kit gets thrown away.
+
+**One deliberate divergence — phone GPS.** AutoTLM Cloud can pair a phone to a
+device and merge the phone's location into frames at read time — so its
+`/devices` and `/latest` carry a `gps_mode` field, and `/latest`/`/history`
+enrich fixes with `gps.source:"phone"`. The DevKit doesn't: it's a
+single-source kit, so it serves each device's frame back exactly as pushed and
+has no phone to merge. This is forward-compatible — the cloud is a superset, so
+you *gain* phone-GPS provenance on graduation rather than losing anything, and
+the enriched fixes still arrive as complete `gps` objects (`fix:true` + lat/lng)
+that render the same. Your `gps.source` handling (`"internal"` locally,
+`"phone"` on the cloud) is the only seam, and it's just reading a field.
 
 ## Honest limits (a.k.a. your upgrade path)
 

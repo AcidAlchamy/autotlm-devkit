@@ -1,5 +1,17 @@
 # AutoTLM DevKit — Update Log
 
+## 2026-07-20 — TLMscript in the README, honest cloud-parity notes, tagged releases
+
+The DevKit README now shows how little it takes to feed the console: a five-line
+[TLMscript](https://github.com/AcidAlchamy/tlmscript) heartbeat that compiles to
+a native AutoTLM Core sketch and streams a frame every two seconds — no C++.
+Alongside it, an honest note on the one place the kit deliberately diverges from
+AutoTLM Cloud: the cloud's phone-as-a-GPS-source merge (`gps_mode`, read-time
+`gps.source:"phone"` enrichment) is a superset a single-source local kit doesn't
+mimic, so you *gain* it on graduation rather than losing anything. And the repo
+finally has git tags — v0.2.0 and v0.3.0 are tagged with a v0.3.0 GitHub release,
+so the downloads page can link a real release like the rest of the family.
+
 ## 2026-07-15 — AutoTLM DevKit v0.3.0: timelines that survive the tunnel, tests, and full offline
 
 The DevKit now keeps time the way the production cloud does: batched catch-up
