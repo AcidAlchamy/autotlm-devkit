@@ -88,7 +88,7 @@
         <span class="muted mono" id="inspector-note">raw telemetry, live</span>
       </div>
       <div class="inspector-meta">
-        <span>ts <b id="fi-ts">—</b></span>
+        <span>ts <b id="fi-ts">—</b><span class="tag-catchup" id="fi-catchup" hidden>CATCH-UP</span></span>
         <span>size <b id="fi-size">—</b></span>
         <button class="btn-hold" id="fi-hold" title="Freeze the inspector to read a frame">HOLD</button>
       </div>
@@ -130,7 +130,9 @@ The stage is set — now point your gear at it:
         <div><dt>signal</dt><dd id="di-rssi">—</dd></div>
         <div><dt>position</dt><dd id="di-pos">no fix</dd></div>
         <div><dt>motion</dt><dd id="di-imu">—</dd></div>
+        <div><dt>sensors</dt><dd id="di-sensors">—</dd></div>
       </dl>
+      <div class="pid-chips" id="pid-chips" hidden></div>
     </div>
   </div>
 

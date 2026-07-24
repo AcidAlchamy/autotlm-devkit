@@ -57,14 +57,20 @@ before(async () => {
     env: { ...process.env, PORT: String(PORT), DEVKIT_TOKEN: TOKEN, DEVKIT_PERSIST: "" },
     stdio: "ignore",
   });
-  // wait for the kit to answer — a cold npm-installed clone boots in well under a second
-  const deadline = Date.now() + 10_000;
+  // wait for the kit to answer — a cold boot is sub-second, but the deadline
+  // is generous so parallel suite runs on a loaded machine don't flake
+  const deadline = Date.now() + 30_000;
   for (;;) {
+    // if OUR child died (usually EADDRINUSE), a healthz answer would come
+    // from a stale server squatting the port — fail loud, never adopt it
+    if (server.exitCode !== null) {
+      throw new Error(`server exited before answering — is a stale process squatting port ${PORT}? Kill it and re-run.`);
+    }
     try {
       const r = await fetch(`${BASE}/healthz`);
       if (r.ok) return;
     } catch { /* not up yet */ }
-    if (Date.now() > deadline) throw new Error("server did not boot within 10 s");
+    if (Date.now() > deadline) throw new Error("server did not boot within 30 s");
     await new Promise((res) => setTimeout(res, 100));
   }
 });

@@ -1,6 +1,6 @@
 {
   "name": "autotlm-devkit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Your car's backend, on your laptop — a ready-to-run telemetry ingest + live console for AutoTLM One developers.",
   "type": "module",
   "main": "server.js",
@@ -9,7 +9,7 @@
     "test": "node --test"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5"
   },
   "keywords": [
     "telemetry",

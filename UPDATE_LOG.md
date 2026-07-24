@@ -1,6 +1,23 @@
 # AutoTLM DevKit — Update Log
 
-## 2026-07-20 — TLMscript in the README, honest cloud-parity notes, tagged releases
+## 2026-07-24 — AutoTLM DevKit v0.4.0: one download is now a whole family
+
+The DevKit grows from a starter into a **family** — same clone, zero new
+dependencies, every piece tested and documented. New under `kits/`:
+**sqlite** (the "first upgrade" done for you — the same API and console backed
+by a real database file that survives restarts, on Node's built-in SQLite),
+**alerts** (watch the live stream and fire threshold / new-trouble-code alerts
+at your console, a webhook, or Discord — built on a hand-rolled SSE client
+that doubles as a teaching artifact), **csv** (any device's history straight
+into a spreadsheet), and **replay** (record a real drive once, replay it
+forever at original cadence — ships no data, replays *your* recordings of
+*your* gear). The console levels up too: freeze-frame snapshots decoded under
+each trouble code ("what was happening when the light came on"), the car's
+advertised sensor menu as PID chips, GPS provenance, and a CATCH-UP tag on
+buffered frames. And a new **docs/** shelf — eight fact-checked pages from
+ingest and the query API down to the SSE wire grammar and a
+ring-buffer-to-SQLite-to-Postgres storage ladder. 38 tests across the family,
+green in CI.
 
 The DevKit README now shows how little it takes to feed the console: a five-line
 [TLMscript](https://github.com/AcidAlchamy/tlmscript) heartbeat that compiles to

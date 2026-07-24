@@ -163,11 +163,15 @@ same port.
 npm test
 ```
 
-boots the kit on a scratch port and walks the loop a real device walks:
-reject a bad token, ingest the canonical frame from Core's README, read it
-back through every query endpoint, and prove a batched catch-up spreads
-correctly across history. Plain `node:test` — no framework to learn, and the
-test file doubles as executable API documentation. CI runs it on every push.
+runs the whole family: the core smoke suite boots the kit on a scratch port
+and walks the loop a real device walks (reject a bad token, ingest the
+canonical frame from Core's README, read it back through every query
+endpoint, prove a batched catch-up spreads correctly across history), and
+every kit under `kits/` brings its own suite — 38 tests, all plain
+`node:test`, no framework to learn, doubling as executable API
+documentation. CI runs it on every push. (The SQLite kit's suite needs
+Node ≥ 22.5 for the built-in `node:sqlite` — the repo's `engines` field
+says so.)
 
 ## The mini-console
 
@@ -178,11 +182,38 @@ the network cable pulled); view-source *is* the documentation.
 - **Instrument cluster** — speed / rpm / coolant dials, throttle / load /
   battery / fuel minis, with amber and red thresholds.
 - **Frame inspector** — every frame, pretty-printed live as it arrives, with a
-  HOLD button for reading one closely. If you're debugging a sketch, you'll
-  live here.
+  HOLD button for reading one closely, and an amber `CATCH-UP` tag on frames
+  that were buffered on-device (`age_ms`) and are only now landing. If you're
+  debugging a sketch, you'll live here.
 - **Diagnostics** — every trouble code the device has ever reported, decoded
-  into plain English, with active / cleared status and first-seen / last-seen.
-- **Device** — id, VIN, signal, a lat/lng position readout, and live g-forces.
+  into plain English, with active / cleared status and first-seen / last-seen —
+  plus, when the frame carries a freeze frame (`dtc.freeze`), the sensor
+  snapshot the ECU stored at the moment the fault set, right under its code.
+- **Device** — id, VIN, signal, a lat/lng position readout with `gps.source`
+  provenance, live g-forces, and the ECU's advertised sensor menu
+  (`obd.supported`) as a row of PID chips.
+
+## The kit family
+
+The core kit is the receiving stage. Around it, `kits/` grows a family of
+grab-and-go tools — each one small, readable, zero extra dependencies, with
+its own README and test suite. Same clone, no second install:
+
+| Kit | One line | Start here |
+|---|---|---|
+| [`kits/sqlite`](kits/sqlite/) | The first upgrade, done for you: the same API and console, backed by a real database file that survives restarts (built-in `node:sqlite`, Node ≥ 22.5). | `node kits/sqlite/server.js` |
+| [`kits/alerts`](kits/alerts/) | Watch the live stream, act on rules — thresholds and new-trouble-code alerts to your console, a webhook, or Discord. Ships a hand-rolled SSE client worth reading. | `node kits/alerts/alerts.js` |
+| [`kits/csv`](kits/csv/) | History → spreadsheet: export any device's `/history` range as CSV (or JSONL) with sane, deterministic columns. | `node kits/csv/export.js` |
+| [`kits/replay`](kits/replay/) | Record a real drive once (the persistence flag), replay it forever at original cadence. Ships no data — it replays **your** recordings of **your** gear. | `node kits/replay/replay.js` |
+
+And when you want to understand rather than just run, **[`docs/`](docs/)** is
+the guided tour: [ingest](docs/ingest.md) (auth, batching, the `age_ms`
+timeline story), the [query API](docs/query-api.md) endpoint by endpoint,
+[SSE](docs/sse.md) down to the wire grammar, [storage](docs/storage.md) from
+ring buffer to SQLite to your Postgres exercise,
+[consuming the frame](docs/frame-consuming.md) safely,
+[the console](docs/console.md)'s no-build internals, and
+[graduating to the cloud](docs/graduating.md).
 
 ## Graduating to AutoTLM Cloud
 

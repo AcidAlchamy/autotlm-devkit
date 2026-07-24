@@ -159,11 +159,23 @@
     }).join(",\n") + "\n" + pad + "}";
   }
 
-  function renderInspector(msg) {
+  function renderInspector(msg, isLive) {
     if (held) return;
     var json = JSON.stringify(msg.frame);
     $("fi-ts").textContent = msg.ts.slice(11, 23) + "Z";
     $("fi-size").textContent = json.length + " B";
+    // A live frame still carrying age_ms was buffered on-device through a
+    // connectivity gap and is only now catching up — tag it so a replayed
+    // backlog never reads as the present. Clears on the next truly-live frame.
+    var tag = $("fi-catchup");
+    var age = msg.frame && typeof msg.frame.age_ms === "number" ? msg.frame.age_ms : 0;
+    if (isLive && age > 0) {
+      var s = age / 1000;
+      tag.title = "buffered frame — captured " + (s >= 10 ? Math.round(s) : s.toFixed(1)) + "s before arrival";
+      tag.hidden = false;
+    } else {
+      tag.hidden = true;
+    }
     $("frame-json").innerHTML = hi(msg.frame, 0);
   }
 
@@ -171,8 +183,10 @@
 
   var frames = 0;
   var lastDtcKey = null;
+  var latestFreeze = null;      // last dtc.freeze seen for the current device
+  var lastSupportedKey = null;  // last obd.supported list, for change detection
 
-  function onFrame(msg) {
+  function onFrame(msg, isLive) {
     var f = msg.frame || {};
     frames++;
     $("sb-frames").textContent = frames;
@@ -214,17 +228,40 @@
     // Practice what the README preaches: null-check INSIDE sub-objects too.
     // A fix flag without coordinates, or an imu missing an axis, is a frame
     // we render around — never a TypeError.
+    // gps.source is the fix's provenance ("internal" locally; the cloud can
+    // add "phone") — append it when present, render fine without it.
     $("di-pos").textContent = gps && gps.fix && typeof gps.lat === "number" && typeof gps.lng === "number"
-      ? gps.lat.toFixed(5) + ", " + gps.lng.toFixed(5) + " · " + (gps.sats || "?") + " sats"
+      ? gps.lat.toFixed(5) + ", " + gps.lng.toFixed(5) + " · " + (gps.sats || "?") + " sats" +
+        (typeof gps.source === "string" && gps.source ? " · " + gps.source : "")
       : "no fix";
     $("di-imu").textContent = imu && typeof imu.ax === "number" && typeof imu.ay === "number" && typeof imu.az === "number"
       ? imu.ax.toFixed(2) + " / " + imu.ay.toFixed(2) + " / " + imu.az.toFixed(2) + " g"
       : "—";
 
-    renderInspector(msg);
+    // sensor menu: the PID list the ECU advertises (obd.supported). Sticky —
+    // a frame that omits it means "no news this cycle", not "no sensors".
+    if (obd && Array.isArray(obd.supported)) {
+      var supKey = obd.supported.join(",");
+      if (supKey !== lastSupportedKey) {
+        lastSupportedKey = supKey;
+        renderSensors(obd.supported);
+      }
+    }
 
-    // reload the DTC table only when the code set actually changes
-    var key = (dtc && dtc.codes ? dtc.codes.slice().sort().join(",") : "") + "|" + mil;
+    renderInspector(msg, isLive);
+
+    // Freeze frames ride the live stream (dtc.freeze: code → PID snapshot).
+    // Track the latest per device — sticky, like the sensor menu — so the
+    // diagnostics table can show the conditions at the moment each fault set.
+    var freeze = dtc && dtc.freeze && typeof dtc.freeze === "object" && !Array.isArray(dtc.freeze)
+      ? dtc.freeze
+      : null;
+    if (freeze) latestFreeze = freeze;
+
+    // reload the DTC table only when the code set — or the freeze data
+    // backing its sub-rows — actually changes
+    var key = (dtc && dtc.codes ? dtc.codes.slice().sort().join(",") : "") + "|" + mil +
+      "|" + (latestFreeze ? JSON.stringify(latestFreeze) : "");
     if (key !== lastDtcKey) {
       lastDtcKey = key;
       if (currentDevice) loadFaults(currentDevice);
@@ -232,6 +269,44 @@
   }
 
   /* ================= diagnostics ======================================== */
+
+  /* Freeze-frame decode: the handful of PIDs a freeze snapshot actually
+   * carries, labelled locally so the kit's /dtc endpoint stays
+   * shape-identical to the cloud (this merge is purely client-side).
+   * Anything we don't know falls back to a raw PID 0x<key>=<val>. */
+  var FREEZE_ORDER = ["0C", "0D", "05", "04", "11", "2F", "0F", "42"];
+  var FREEZE_FMT = {
+    "0C": function (v) { return v + " rpm"; },
+    "0D": function (v) { return v + " km/h"; },
+    "05": function (v) { return "coolant " + v + " °C"; },
+    "04": function (v) { return "load " + v + " %"; },
+    "11": function (v) { return "throttle " + v + " %"; },
+    "2F": function (v) { return "fuel " + v + " %"; },
+    "0F": function (v) { return "intake " + v + " °C"; },
+    "42": function (v) { return "module " + v + " V"; }
+  };
+
+  /* One snapshot → one "1840 rpm · 58 km/h · coolant 88 °C" line.
+   * A snapshot may be missing any PID — or be missing entirely — so this
+   * renders whatever is there and returns "" for nothing renderable. */
+  function freezeLine(snap) {
+    if (!snap || typeof snap !== "object" || Array.isArray(snap)) return "";
+    var rest = [];
+    Object.keys(snap).forEach(function (k) {
+      if (FREEZE_ORDER.indexOf(k) === -1) rest.push(k);
+    });
+    rest.sort();
+    var parts = [];
+    FREEZE_ORDER.concat(rest).forEach(function (k) {
+      var v = snap[k];
+      if (v == null || (typeof v !== "number" && typeof v !== "string")) return;
+      // own-property check: a hostile key like "constructor" must fall back
+      // to the raw form, never resolve through the prototype chain
+      var fmt = Object.prototype.hasOwnProperty.call(FREEZE_FMT, k) && FREEZE_FMT[k];
+      parts.push(fmt ? fmt(v) : "PID 0x" + k + "=" + v);
+    });
+    return parts.join(" · ");
+  }
 
   function loadFaults(id) {
     API.dtc(id).then(function (d) {
@@ -250,7 +325,12 @@
       tb.innerHTML = "";
       codes.forEach(function (c) {
         var info = window.decodeDtc(c.code);
+        // Freeze-frame sub-row: the sensor snapshot the ECU stored at the
+        // moment this code set. It rides the live frame's dtc.freeze and is
+        // merged here client-side — /dtc itself stays cloud-shaped.
+        var line = latestFreeze ? freezeLine(latestFreeze[c.code]) : "";
         var tr = document.createElement("tr");
+        if (line) tr.className = "has-freeze";
         tr.innerHTML =
           '<td><span class="dtc-code">' + esc(c.code) + "</span></td>" +
           "<td>" + esc(info.text) + '<span class="dtc-sub">' + esc(info.detail) + "</span></td>" +
@@ -258,9 +338,48 @@
           "<td class='mono'>" + esc(c.first_seen.slice(0, 19).replace("T", " ")) + "</td>" +
           "<td class='mono'>" + esc(c.last_seen.slice(0, 19).replace("T", " ")) + "</td>";
         tb.appendChild(tr);
+        if (line) {
+          var fr = document.createElement("tr");
+          fr.className = "dtc-freeze";
+          fr.innerHTML = '<td></td><td colspan="4"><span class="fz-lbl">at fault:</span> ' + esc(line) + "</td>";
+          tb.appendChild(fr);
+        }
       });
       $("dtc-table").hidden = false;
     }).catch(function () { /* device may have vanished between polls */ });
+  }
+
+  /* ================= sensor menu (obd.supported) ======================== */
+
+  function pidHex(v) {
+    // the contract sends uppercase-hex strings; a stray number still renders
+    if (typeof v === "number" && isFinite(v)) {
+      var h = Math.round(v).toString(16).toUpperCase();
+      return h.length < 2 ? "0" + h : h;
+    }
+    return String(v).toUpperCase();
+  }
+
+  var CHIP_CAP = 24; // keep the row a menu, not a wall
+
+  function renderSensors(list) {
+    var dd = $("di-sensors");
+    var row = $("pid-chips");
+    if (!list || !list.length) {
+      dd.textContent = "—";
+      row.innerHTML = "";
+      row.hidden = true;
+      return;
+    }
+    dd.textContent = list.length + " advertised";
+    var html = list.slice(0, CHIP_CAP).map(function (p) {
+      return '<span class="pid-chip">' + esc(pidHex(p)) + "</span>";
+    }).join("");
+    if (list.length > CHIP_CAP) {
+      html += '<span class="pid-chip more">+' + (list.length - CHIP_CAP) + " more</span>";
+    }
+    row.innerHTML = html;
+    row.hidden = false;
   }
 
   /* ================= live stream / device selection ===================== */
@@ -273,6 +392,12 @@
     $("sb-dev").textContent = id;
     if (es) { es.close(); es = null; }
     setLive("", "connecting…");
+    // a device switch is a clean slate for the per-device trackers
+    latestFreeze = null;
+    lastDtcKey = null;
+    lastSupportedKey = null;
+    renderSensors(null);
+    $("fi-catchup").hidden = true;
     // show the last frame the device pushed immediately, so the console isn't
     // blank when you open it between drives; SSE then keeps it live.
     API.latest(id).then(function (m) { if (m && m.frame) onFrame(m); }).catch(function () { });
@@ -280,7 +405,7 @@
     es.onopen = function () { setLive("", "listening…"); };
     es.onerror = function () { setLive("err", "reconnecting"); };
     es.onmessage = function (e) {
-      try { onFrame(JSON.parse(e.data)); } catch (err) { /* skip a bad frame */ }
+      try { onFrame(JSON.parse(e.data), true); } catch (err) { /* skip a bad frame */ }
     };
     loadFaults(id);
   }

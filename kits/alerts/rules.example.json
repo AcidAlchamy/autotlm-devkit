@@ -1,0 +1,33 @@
+[
+  {
+    "path": "obd.coolant_c",
+    "op": ">",
+    "value": 105,
+    "for_s": 10,
+    "cooldown_s": 300,
+    "message": "Coolant {value}°C on {device} — over 105 for 10 s",
+    "webhook": "https://example.com/hook"
+  },
+  {
+    "path": "obd.volts",
+    "op": "<",
+    "value": 12.4,
+    "for_s": 30,
+    "cooldown_s": 600,
+    "message": "Battery at {value} V on {device} — charging system worth a look"
+  },
+  {
+    "type": "dtc",
+    "cooldown_s": 0,
+    "message": "New trouble code on {device}: {codes}",
+    "discord": "https://example.com/hook"
+  },
+  {
+    "path": "obd.speed_kph",
+    "op": ">",
+    "value": 120,
+    "for_s": 5,
+    "cooldown_s": 300,
+    "message": "{value} km/h — easy out there"
+  }
+]

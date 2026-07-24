@@ -281,6 +281,16 @@ h1, h2, h3 { color: var(--text-strong); margin: 0 0 .5em; letter-spacing: .01em;
 }
 .btn-hold:hover { color: var(--text-strong); border-color: var(--muted); }
 .btn-hold.held { background: var(--amber); color: var(--amber-ink); border-color: var(--amber-deep); }
+/* CATCH-UP: a live frame that was buffered on-device (age_ms > 0) and is
+   only now landing — amber so a replayed backlog never reads as the present */
+.tag-catchup {
+  font-size: .6rem; font-weight: 700; letter-spacing: .14em;
+  color: var(--amber);
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+  background: color-mix(in srgb, var(--amber) 8%, transparent);
+  padding: 1px 6px; margin-left: 8px;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+}
 .frame-json {
   flex: 1; margin: 0; min-height: 340px; max-height: 520px; overflow: auto;
   background: var(--bg-2); border: 1px solid var(--line-soft);
@@ -310,12 +320,37 @@ h1, h2, h3 { color: var(--text-strong); margin: 0 0 .5em; letter-spacing: .01em;
 .dtc-active { color: var(--red); font-weight: 700; font-family: var(--font-mono); font-size: .78rem; letter-spacing: .1em; }
 .dtc-cleared { color: var(--teal); font-family: var(--font-mono); font-size: .78rem; letter-spacing: .1em; }
 .dtc-sub { color: var(--muted); font-size: .76rem; display: block; margin-top: 2px; }
+/* freeze-frame sub-row: the PID snapshot the ECU stored at the moment a code
+   set — a quiet mono line tucked under its code's row */
+.dtc-table tr.has-freeze td { border-bottom: none; padding-bottom: 3px; }
+.dtc-table tr.dtc-freeze td {
+  padding: 0 10px 10px;
+  font-family: var(--font-mono); font-size: .74rem; color: var(--muted);
+}
+.dtc-freeze .fz-lbl { color: var(--faint); font-size: .68rem; letter-spacing: .08em; }
 
 /* ---------- device panel ---------- */
 .device-info { margin: 0; display: grid; gap: 8px; }
 .device-info div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--hairline); padding-bottom: 6px; }
 .device-info dt { color: var(--faint); font-size: .72rem; text-transform: uppercase; letter-spacing: .14em; }
 .device-info dd { margin: 0; color: var(--text-strong); font-size: .84rem; overflow-wrap: anywhere; text-align: right; font-family: var(--font-mono); }
+/* sensor menu: the ECU's advertised PID list (obd.supported) as tiny chips */
+.pid-chips {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+/* our display:flex would out-rank the UA's [hidden] rule — restore it */
+.pid-chips[hidden] { display: none; }
+.pid-chip {
+  font-family: var(--font-mono); font-size: .64rem; font-weight: 600;
+  letter-spacing: .1em; color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  padding: 2px 7px;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+}
+.pid-chip.more { color: var(--faint); background: transparent; }
 
 /* ---------- system strip ---------- */
 .system { margin-top: 20px; padding-top: 26px; border-top: 1px solid var(--hairline); }
